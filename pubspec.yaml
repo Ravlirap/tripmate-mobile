@@ -15,7 +15,7 @@ dependencies:
   # Firebase & Google Sign-In
   firebase_core: ^3.8.0
   firebase_auth: ^5.5.0
-  google_sign_in: ^6.3.0
+  google_sign_in: ^6.2.1
 
   # Provider (WAJIB untuk tugas besar)
   provider: ^6.1.0

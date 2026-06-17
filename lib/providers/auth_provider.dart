@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
-import 'package:google_sign_in/google_sign_in.dart';
 import '../services/api_service.dart';
 import '../services/firebase_auth_service.dart';
 import '../models/user.dart';
@@ -18,7 +16,10 @@ class AuthProvider extends ChangeNotifier {
   // ---------- INISIALISASI ----------
   Future<void> init() async {
     _setLoading(true);
+
+    // FIXED: init() sekarang aman dipanggil (tidak ada operasi di dalamnya untuk v6)
     await _authService.init();
+
     final firebaseUser = _authService.currentFirebaseUser;
     if (firebaseUser != null && _currentUser == null) {
       final email = firebaseUser.email ?? '';
@@ -29,6 +30,7 @@ class AuthProvider extends ChangeNotifier {
         }
       }
     }
+
     _setLoading(false);
   }
 
@@ -40,18 +42,21 @@ class AuthProvider extends ChangeNotifier {
       final result = await ApiService.login(email, password);
       if (result['success'] == true) {
         _currentUser = result['user'];
-        // Sinkronkan dengan Firebase (opsional)
+        // Sinkronkan dengan Firebase (opsional, gagal tidak masalah)
         try {
+          // FIXED: method signInWithEmail sekarang ada di FirebaseAuthService
           await _authService.signInWithEmail(email, password);
         } catch (_) {}
         notifyListeners();
         return true;
       } else {
         _errorMessage = result['error'] ?? 'Login gagal';
+        notifyListeners();
         return false;
       }
     } catch (e) {
       _errorMessage = 'Terjadi kesalahan: $e';
+      notifyListeners();
       return false;
     } finally {
       _setLoading(false);
@@ -59,25 +64,30 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ---------- REGISTER EMAIL/PASSWORD ----------
-  Future<bool> registerWithEmail(String name, String email, String password, String role) async {
+  Future<bool> registerWithEmail(
+      String name, String email, String password, String role) async {
     _setLoading(true);
     _clearError();
     try {
-      final result = await ApiService.register(name, email, password, role);
+      final result =
+          await ApiService.register(name, email, password, role);
       if (result['success'] == true) {
-        _currentUser = result['user'];
+        // FIXED: setelah register, jangan set _currentUser langsung — arahkan ke login
         // Sinkronkan dengan Firebase (opsional)
         try {
+          // FIXED: method registerWithEmail sekarang ada di FirebaseAuthService
           await _authService.registerWithEmail(email, password);
         } catch (_) {}
         notifyListeners();
         return true;
       } else {
         _errorMessage = result['error'] ?? 'Registrasi gagal';
+        notifyListeners();
         return false;
       }
     } catch (e) {
       _errorMessage = 'Terjadi kesalahan: $e';
+      notifyListeners();
       return false;
     } finally {
       _setLoading(false);
@@ -95,9 +105,12 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       }
+      _errorMessage = 'Login Google dibatalkan';
+      notifyListeners();
       return false;
     } catch (e) {
       _errorMessage = 'Google Login gagal: $e';
+      notifyListeners();
       return false;
     } finally {
       _setLoading(false);

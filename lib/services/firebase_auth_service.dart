@@ -3,48 +3,92 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'api_service.dart';
-import '../models/user.dart';
+import '../models/user.dart' as app_models;
 
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+
+  // FIXED: google_sign_in v6 menggunakan constructor biasa, bukan .instance
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
   User? get currentFirebaseUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Inisialisasi GoogleSignIn
+  // ---------- INISIALISASI ----------
+  // FIXED: v6 tidak perlu .initialize() atau .attemptLightweightAuthentication()
   Future<void> init() async {
-    await _googleSignIn.initialize();
-    await _googleSignIn.attemptLightweightAuthentication();
+    // Tidak ada yang perlu diinisialisasi untuk google_sign_in v6
+  }
+
+  // ---------- LOGIN DENGAN EMAIL/PASSWORD (Firebase) ----------
+  // FIXED: method ini sebelumnya tidak ada, sekarang ditambahkan
+  Future<User?> signInWithEmail(String email, String password) async {
+    try {
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return userCredential.user;
+    } on FirebaseAuthException catch (e) {
+      // Tidak perlu throw — ini opsional, gagal pun tidak masalah
+      print('Firebase email sign-in error: ${e.message}');
+      return null;
+    }
+  }
+
+  // ---------- REGISTER DENGAN EMAIL/PASSWORD (Firebase) ----------
+  // FIXED: method ini sebelumnya tidak ada, sekarang ditambahkan
+  Future<User?> registerWithEmail(String email, String password) async {
+    try {
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return userCredential.user;
+    } on FirebaseAuthException catch (e) {
+      // Tidak perlu throw — ini opsional, gagal pun tidak masalah
+      print('Firebase email register error: ${e.message}');
+      return null;
+    }
   }
 
   // ---------- LOGIN DENGAN GOOGLE ----------
-  Future<User?> signInWithGoogle() async {
+  Future<app_models.User?> signInWithGoogle() async {
     try {
-      // 1. Authenticate dengan Google (API v7 menggunakan .authenticate())
-      final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
+      // FIXED: v6 menggunakan .signIn() bukan .authenticate()
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         // User membatalkan login
         return null;
       }
 
-      // 2. Dapatkan ID Token
-      final String? idToken = await googleUser.authentication.then(
-        (auth) => auth.idToken,
-      );
+      // Dapatkan auth credentials dari Google
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final String? idToken = googleAuth.idToken;
       if (idToken == null) {
         throw Exception('ID Token tidak ditemukan');
       }
 
-      // 3. Login ke Firebase dengan credential
-      final credential = GoogleAuthProvider.credential(idToken: idToken);
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      // Login ke Firebase dengan credential
+      final credential = GoogleAuthProvider.credential(
+        idToken: idToken,
+        accessToken: googleAuth.accessToken,
+      );
+      final UserCredential userCredential =
+          await _auth.signInWithCredential(credential);
       final User? firebaseUser = userCredential.user;
       if (firebaseUser == null) {
         throw Exception('Gagal login ke Firebase');
       }
 
-      // 4. Kirim ID Token ke backend PHP untuk sinkronisasi
+      // FIXED: gunakan email dari googleUser, bukan variabel 'email' yang tidak terdefinisi
+      final String userEmail = googleUser.email;
+
+      // Kirim ID Token ke backend PHP untuk sinkronisasi
       final response = await http.post(
         Uri.parse('${ApiService.baseUrl}/login_google.php'),
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -55,7 +99,7 @@ class FirebaseAuthService {
       if (response.statusCode == 200 && responseData['status'] == 'success') {
         if (responseData['user'] != null) {
           final u = responseData['user'];
-          ApiService.currentUser = User(
+          ApiService.currentUser = app_models.User(
             id: u['id'].toString(),
             name: u['name'],
             email: u['email'],
@@ -64,8 +108,8 @@ class FirebaseAuthService {
           );
           return ApiService.currentUser;
         } else {
-          // Jika response tidak mengirim user, ambil dari database
-          final result = await ApiService.loginWithGoogle(email);
+          // Fallback: fetch user dari database berdasarkan email
+          final result = await ApiService.loginWithGoogle(userEmail);
           if (result['success'] == true) {
             return result['user'];
           } else {

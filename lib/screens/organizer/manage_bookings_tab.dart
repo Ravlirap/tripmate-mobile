@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../services/api_service.dart';
 import '../../widgets/booking_tile.dart';
 import '../../models/booking.dart';
+import '../../models/trip.dart';
 
 class ManageBookingsTab extends StatefulWidget {
   const ManageBookingsTab({super.key});
@@ -13,6 +14,8 @@ class ManageBookingsTab extends StatefulWidget {
 
 class _ManageBookingsTabState extends State<ManageBookingsTab> {
   List<Booking> bookings = [];
+  // FIXED: simpan map tripId -> tripTitle agar tidak fetch berulang
+  Map<String, String> tripTitles = {};
   bool _loading = true;
 
   @override
@@ -25,19 +28,26 @@ class _ManageBookingsTabState extends State<ManageBookingsTab> {
     final user = ApiService.currentUser;
     if (user != null) {
       setState(() => _loading = true);
+
       final data = await ApiService.getBookingsByOrganizer(user.id);
+      data.sort((a, b) => b.bookingDate.compareTo(a.bookingDate));
+
+      // FIXED: fetch judul trip untuk setiap booking secara paralel
+      final Map<String, String> titles = {};
+      final uniqueTripIds = data.map((b) => b.tripId).toSet();
+      await Future.wait(uniqueTripIds.map((tripId) async {
+        final Trip? trip = await ApiService.getTripById(tripId);
+        titles[tripId] = trip?.title ?? 'Trip #$tripId';
+      }));
+
       setState(() {
         bookings = data;
-        bookings.sort((a, b) => b.bookingDate.compareTo(a.bookingDate));
+        tripTitles = titles;
         _loading = false;
       });
     } else {
       setState(() => _loading = false);
     }
-  }
-
-  String _getTripTitle(String tripId) {
-    return 'Trip #$tripId';
   }
 
   @override
@@ -64,8 +74,11 @@ class _ManageBookingsTabState extends State<ManageBookingsTab> {
                   itemCount: bookings.length,
                   itemBuilder: (ctx, i) {
                     final booking = bookings[i];
+                    // FIXED: gunakan judul asli dari map, fallback ke ID
+                    final title =
+                        tripTitles[booking.tripId] ?? 'Trip #${booking.tripId}';
                     return BookingTile(
-                      tripTitle: _getTripTitle(booking.tripId),
+                      tripTitle: title,
                       booking: booking,
                       showActions: true,
                       onStatusChanged: _loadBookings,
