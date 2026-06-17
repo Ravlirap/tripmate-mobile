@@ -1,142 +1,124 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:tubes_ppb_app/core/services/auth_service.dart';
-import 'package:tubes_ppb_app/models/user_model.dart';
+import '../services/api_service.dart';
+import '../services/firebase_auth_service.dart';
+import '../models/user.dart';
 
 class AuthProvider extends ChangeNotifier {
-  final AuthService authService;
-  final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
-
-  UserModel? _user;
+  final FirebaseAuthService _authService = FirebaseAuthService();
+  User? _currentUser;
   bool _isLoading = false;
   String? _errorMessage;
 
-  AuthProvider(this.authService) {
-    checkAuthStatus();
-  }
-
-  UserModel? get user => _user;
+  User? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  bool get isAuthenticated => _user != null;
 
-  void setLoading(bool value) {
+  // ---------- INISIALISASI ----------
+  Future<void> init() async {
+    _setLoading(true);
+    await _authService.init();
+    final firebaseUser = _authService.currentFirebaseUser;
+    if (firebaseUser != null && _currentUser == null) {
+      final email = firebaseUser.email ?? '';
+      if (email.isNotEmpty) {
+        final result = await ApiService.loginWithGoogle(email);
+        if (result['success'] == true) {
+          _currentUser = result['user'];
+        }
+      }
+    }
+    _setLoading(false);
+  }
+
+  // ---------- LOGIN EMAIL/PASSWORD ----------
+  Future<bool> loginWithEmail(String email, String password) async {
+    _setLoading(true);
+    _clearError();
+    try {
+      final result = await ApiService.login(email, password);
+      if (result['success'] == true) {
+        _currentUser = result['user'];
+        // Sinkronkan dengan Firebase (opsional)
+        try {
+          await _authService.signInWithEmail(email, password);
+        } catch (_) {}
+        notifyListeners();
+        return true;
+      } else {
+        _errorMessage = result['error'] ?? 'Login gagal';
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = 'Terjadi kesalahan: $e';
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ---------- REGISTER EMAIL/PASSWORD ----------
+  Future<bool> registerWithEmail(String name, String email, String password, String role) async {
+    _setLoading(true);
+    _clearError();
+    try {
+      final result = await ApiService.register(name, email, password, role);
+      if (result['success'] == true) {
+        _currentUser = result['user'];
+        // Sinkronkan dengan Firebase (opsional)
+        try {
+          await _authService.registerWithEmail(email, password);
+        } catch (_) {}
+        notifyListeners();
+        return true;
+      } else {
+        _errorMessage = result['error'] ?? 'Registrasi gagal';
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = 'Terjadi kesalahan: $e';
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ---------- LOGIN DENGAN GOOGLE (Firebase) ----------
+  Future<bool> signInWithGoogle() async {
+    _setLoading(true);
+    _clearError();
+    try {
+      final user = await _authService.signInWithGoogle();
+      if (user != null) {
+        _currentUser = user;
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      _errorMessage = 'Google Login gagal: $e';
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ---------- LOGOUT ----------
+  Future<void> logout() async {
+    await _authService.signOut();
+    _currentUser = null;
+    _clearError();
+    notifyListeners();
+  }
+
+  // ---------- HELPERS ----------
+  void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
   }
 
-  void clearError() {
+  void _clearError() {
     _errorMessage = null;
-  }
-
-  void setUser(UserModel? user) {
-    _user = user;
-    notifyListeners();
-  }
-
-  /// Check token persistence and load profile from local secure storage
-  Future<void> checkAuthStatus() async {
-    setLoading(true);
-    clearError();
-    try {
-      final token = await secureStorage.read(key: 'sanctum_token');
-      if (token != null) {
-        _user = await authService.getProfile();
-      } else {
-        _user = null;
-      }
-    } catch (e) {
-      await secureStorage.delete(key: 'sanctum_token');
-      _user = null;
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  /// Trigger Google Sign-In, exchange for Firebase credentials, and sync with Laravel backend.
-  Future<bool> loginWithGoogle({required String selectedRole}) async {
-    setLoading(true);
-    clearError();
-    try {
-      // 1. Google OAuth Sign In
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        _errorMessage = 'Login dibatalkan oleh pengguna.';
-        setLoading(false);
-        return false;
-      }
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-      // 2. Authenticate with Firebase using Google credentials
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final UserCredential userCredential =
-          await _firebaseAuth.signInWithCredential(credential);
-      final User? firebaseUser = userCredential.user;
-
-      if (firebaseUser == null) {
-        throw Exception('Gagal mendapatkan informasi pengguna dari Firebase.');
-      }
-
-      // 3. Sync with Laravel Sanctum API
-      final syncResult = await authService.firebaseSync(
-        firebaseUid: firebaseUser.uid,
-        name: firebaseUser.displayName ?? googleUser.displayName ?? 'Traveler',
-        email: firebaseUser.email ?? googleUser.email,
-        avatarUrl: firebaseUser.photoURL ?? googleUser.photoUrl,
-        phone: firebaseUser.phoneNumber,
-        role: selectedRole,
-      );
-
-      _user = syncResult['user'] as UserModel;
-      final token = syncResult['token'] as String;
-
-      // 4. Save the Sanctum token securely
-      await secureStorage.write(key: 'sanctum_token', value: token);
-      
-      setLoading(false);
-      return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
-      setLoading(false);
-      return false;
-    }
-  }
-
-  /// Refresh user profile details from the backend
-  Future<void> refreshProfile() async {
-    if (!isAuthenticated) return;
-    try {
-      _user = await authService.getProfile();
-      notifyListeners();
-    } catch (e) {
-      if (e.toString().contains('401')) {
-        await logout();
-      }
-    }
-  }
-
-  /// Revoke token on Laravel, sign out from Firebase, and clear secure storage.
-  Future<void> logout() async {
-    setLoading(true);
-    try {
-      await authService.logout();
-    } catch (_) {
-      // Ignore network errors on logout
-    } finally {
-      await _firebaseAuth.signOut();
-      await _googleSignIn.signOut();
-      await secureStorage.delete(key: 'sanctum_token');
-      _user = null;
-      setLoading(false);
-    }
   }
 }

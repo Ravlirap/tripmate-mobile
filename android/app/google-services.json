@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "109753263296",
+    "project_id": "tripmate-project-fae1a",
+    "storage_bucket": "tripmate-project-fae1a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:109753263296:android:7eb2d5ad0f65c69d13b925",
+        "android_client_info": {
+          "package_name": "com.example.tubes_ppb_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "109753263296-g7t49ldvljjn4f4qe333r34n772ufglp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tubes_ppb_app",
+            "certificate_hash": "3482611a8c2153a7d0feb45c4aeb500b62415c95"
+          }
+        },
+        {
+          "client_id": "109753263296-9ncpurlroo3o47pie526dmmggfcenk9n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhlfr_CZdmQXwiGquWp3oMRBhUanWfucY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "109753263296-9ncpurlroo3o47pie526dmmggfcenk9n.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

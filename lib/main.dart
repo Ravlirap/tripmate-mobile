@@ -1,27 +1,59 @@
 import 'package:flutter/material.dart';
-import 'package:intl/date_symbol_data_local.dart';
-import 'package:intl/intl.dart';
-import 'package:tubes_ppb_app/core/theme/app_theme.dart';
-import 'package:tubes_ppb_app/presentation/pages/home_page.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
+import 'firebase_options.dart';
+import 'theme/app_theme.dart';
+import 'providers/auth_provider.dart';
+import 'screens/splash_screen.dart';
+import 'screens/traveler/traveler_home.dart';
+import 'screens/organizer/organizer_home.dart';
+import 'models/user.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Intl.defaultLocale = 'id';
-  await initializeDateFormatting('id');
-  runApp(const TripMateApp());
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(const MyApp());
 }
 
-/// Root widget for the TripMate application.
-class TripMateApp extends StatelessWidget {
-  const TripMateApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'TripMate',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: const HomePage(),
+    return ChangeNotifierProvider(
+      create: (_) => AuthProvider()..init(),
+      child: MaterialApp(
+        title: 'TripMate',
+        theme: AppTheme.lightTheme,
+        debugShowCheckedModeBanner: false,
+        home: Consumer<AuthProvider>(
+          builder: (context, auth, _) {
+            final currentUser = auth.currentUser;
+
+            if (auth.isLoading) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            if (currentUser != null) {
+              return currentUser.role == 'organizer'
+                  ? OrganizerHome(
+                      user: currentUser,
+                      logoutCallback: () => auth.logout(),
+                    )
+                  : TravelerHome(
+                      user: currentUser,
+                      logoutCallback: () => auth.logout(),
+                    );
+            }
+
+            return const SplashScreen();
+          },
+        ),
+      ),
     );
   }
 }
