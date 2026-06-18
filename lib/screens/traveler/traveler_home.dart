@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/user.dart';
+import '../../theme/app_theme.dart';
 import 'home_tab.dart';
 import 'my_bookings_tab.dart';
 import '../profile_tab.dart';
@@ -27,17 +28,37 @@ class _TravelerHomeState extends State<TravelerHome> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _tabs[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined), label: 'Beranda'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_outlined), label: 'Pesanan'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline), label: 'Profil'),
-        ],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+        ),
+        child: NavigationBar(
+          selectedIndex: _selectedIndex,
+          onDestinationSelected: (index) =>
+              setState(() => _selectedIndex = index),
+          backgroundColor: AppColors.surface,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          elevation: 0,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home_rounded),
+              label: 'Beranda',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.receipt_long_outlined),
+              selectedIcon: Icon(Icons.receipt_long_rounded),
+              label: 'Pesanan',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: 'Profil',
+            ),
+          ],
+        ),
       ),
     );
   }

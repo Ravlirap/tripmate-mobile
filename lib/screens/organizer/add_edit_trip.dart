@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../models/trip.dart';
 import '../../services/api_service.dart';
 import '../../widgets/custom_button.dart';
+import '../../theme/app_theme.dart';
 
 class AddEditTripScreen extends StatefulWidget {
   final Trip? trip;
@@ -68,13 +69,16 @@ class _AddEditTripScreenState extends State<AddEditTripScreen> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isEdit ? 'Trip berhasil diperbarui!' : 'Trip berhasil ditambahkan!'),
-            backgroundColor: Colors.green,
+            content: Text(
+                _isEdit ? 'Trip berhasil diperbarui!' : 'Trip berhasil ditambahkan!'),
+            backgroundColor: AppColors.success,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gagal menyimpan trip'), backgroundColor: Colors.red),
+          const SnackBar(
+              content: Text('Gagal menyimpan trip'),
+              backgroundColor: AppColors.error),
         );
       }
     }
@@ -83,63 +87,142 @@ class _AddEditTripScreenState extends State<AddEditTripScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_isEdit ? 'Edit Trip' : 'Tambah Trip')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(_isEdit ? 'Edit Trip' : 'Tambah Trip'),
+        backgroundColor: AppColors.surface,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextFormField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(labelText: 'Judul Trip'),
-                  validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- Section: Info Dasar ---
+              _buildSectionHeader(Icons.info_outline_rounded, 'Informasi Dasar'),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Judul Trip',
+                  prefixIcon: Icon(Icons.title_rounded),
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _destinationController,
-                  decoration: const InputDecoration(labelText: 'Destinasi'),
-                  validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _destinationController,
+                decoration: const InputDecoration(
+                  labelText: 'Destinasi',
+                  prefixIcon: Icon(Icons.location_on_outlined),
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _dateController,
-                  decoration: const InputDecoration(labelText: 'Tanggal (YYYY-MM-DD)'),
-                  validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+              ),
+              const SizedBox(height: 24),
+
+              // --- Section: Jadwal & Kuota ---
+              _buildSectionHeader(Icons.event_rounded, 'Jadwal & Kuota'),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _dateController,
+                decoration: const InputDecoration(
+                  labelText: 'Tanggal Keberangkatan',
+                  hintText: 'YYYY-MM-DD',
+                  prefixIcon: Icon(Icons.calendar_today_rounded),
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _quotaController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Kuota'),
-                  validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _quotaController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Kuota Peserta',
+                  prefixIcon: Icon(Icons.people_alt_rounded),
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _priceController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Harga (Rp)'),
-                  validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+              ),
+              const SizedBox(height: 24),
+
+              // --- Section: Harga ---
+              _buildSectionHeader(Icons.payments_rounded, 'Harga'),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _priceController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Harga per Orang (Rp)',
+                  prefixIcon: Icon(Icons.attach_money_rounded),
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _descController,
-                  maxLines: 4,
-                  decoration: const InputDecoration(labelText: 'Deskripsi'),
-                  validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+              ),
+              const SizedBox(height: 24),
+
+              // --- Section: Deskripsi ---
+              _buildSectionHeader(Icons.description_rounded, 'Deskripsi Trip'),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _descController,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: 'Deskripsi lengkap trip',
+                  alignLabelWithHint: true,
+                  prefixIcon: Padding(
+                    padding: EdgeInsets.only(bottom: 64),
+                    child: Icon(Icons.notes_rounded),
+                  ),
                 ),
-                const SizedBox(height: 32),
-                CustomButton(
-                  text: _submitting ? 'Menyimpan...' : (_isEdit ? 'Update Trip' : 'Simpan Trip'),
-                  onPressed: _submit,
-                  isOutlined: false,
-                ),
-              ],
-            ),
+                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+              ),
+              const SizedBox(height: 36),
+
+              // --- Submit ---
+              CustomButton(
+                text: _submitting
+                    ? 'Menyimpan...'
+                    : (_isEdit ? 'Perbarui Trip' : 'Simpan Trip'),
+                icon: _submitting
+                    ? null
+                    : (_isEdit ? Icons.save_rounded : Icons.add_rounded),
+                onPressed: _submitting ? null : _submit,
+                isOutlined: false,
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionHeader(IconData icon, String title) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: AppColors.primary, size: 17),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textDark,
+            letterSpacing: -0.2,
+          ),
+        ),
+      ],
     );
   }
 }

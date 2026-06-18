@@ -4,6 +4,7 @@ import '../../services/api_service.dart';
 import '../../widgets/booking_tile.dart';
 import '../../models/booking.dart';
 import '../../models/trip.dart';
+import '../../theme/app_theme.dart';
 
 class MyBookingsTab extends StatefulWidget {
   const MyBookingsTab({super.key});
@@ -53,26 +54,80 @@ class _MyBookingsTabState extends State<MyBookingsTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pesanan Saya'), elevation: 0),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : bookings.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.receipt_long_outlined,
-                          size: 80, color: Colors.grey[400]),
-                      const SizedBox(height: 16),
-                      Text('Belum ada pemesanan',
-                          style: GoogleFonts.poppins(color: Colors.grey[600])),
-                    ],
+      backgroundColor: AppColors.background,
+      body: RefreshIndicator(
+        onRefresh: _loadBookings,
+        color: AppColors.primary,
+        child: CustomScrollView(
+          slivers: [
+            // --- Header ---
+            SliverToBoxAdapter(
+              child: Container(
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 16,
+                  bottom: 20,
+                  left: 20,
+                  right: 20,
+                ),
+                decoration: const BoxDecoration(
+                  color: AppColors.surface,
+                  border: Border(
+                    bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.only(top: 8),
-                  itemCount: bookings.length,
-                  itemBuilder: (ctx, i) {
+                ),
+                child: Row(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pesanan Saya',
+                          style: GoogleFonts.poppins(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textDark,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        Text(
+                          'Riwayat booking open tripmu',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(Icons.receipt_long_rounded,
+                          color: AppColors.primary, size: 22),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // --- Content ---
+            if (_loading)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (bookings.isEmpty)
+              SliverFillRemaining(
+                child: _buildEmptyState(),
+              )
+            else ...[
+              const SliverToBoxAdapter(child: SizedBox(height: 8)),
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (ctx, i) {
                     final booking = bookings[i];
                     // FIXED: gunakan judul asli dari map, fallback ke ID
                     final title =
@@ -84,7 +139,55 @@ class _MyBookingsTabState extends State<MyBookingsTab> {
                       onStatusChanged: _loadBookings,
                     );
                   },
+                  childCount: bookings.length,
                 ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.receipt_long_outlined,
+                  size: 50, color: AppColors.secondary),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Belum Ada Pesanan',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Yuk, temukan open trip favoritmu dan mulai petualangan baru!',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -56,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(auth.errorMessage ?? 'Login Google gagal'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     }
@@ -68,131 +69,199 @@ class _LoginScreenState extends State<LoginScreen> {
     return Consumer<AuthProvider>(
       builder: (context, auth, _) {
         return Scaffold(
-          appBar: AppBar(title: const Text('Masuk')),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
+          backgroundColor: AppColors.background,
+          body: AnnotatedRegion<SystemUiOverlayStyle>(
+            value: SystemUiOverlayStyle.dark,
+            child: SingleChildScrollView(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 16),
-                  Text(
-                    'Selamat Datang Kembali!',
-                    style: GoogleFonts.poppins(
-                        fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Masuk untuk melanjutkan petualanganmu.',
-                    style: GoogleFonts.poppins(color: AppColors.textGrey),
-                  ),
-                  const SizedBox(height: 32),
+                  // --- Header Gradient ---
+                  _buildHeader(context),
 
-                  // --- Email Field ---
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Email wajib diisi';
-                      if (!v.contains('@')) return 'Format email tidak valid';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
+                  // --- Form Section ---
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Selamat Datang Kembali!',
+                            style: GoogleFonts.poppins(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textDark,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Masuk untuk melanjutkan petualanganmu.',
+                            style: GoogleFonts.poppins(
+                              color: AppColors.textSecondary,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 32),
 
-                  // --- Password Field ---
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      // FIXED: tambah toggle show/hide password
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined),
-                        onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword),
+                          // --- Email Field ---
+                          TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: const InputDecoration(
+                              labelText: 'Email',
+                              prefixIcon: Icon(Icons.email_outlined),
+                            ),
+                            validator: (v) {
+                              if (v == null || v.isEmpty) return 'Email wajib diisi';
+                              if (!v.contains('@')) return 'Format email tidak valid';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+
+                          // --- Password Field ---
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              prefixIcon: const Icon(Icons.lock_outline_rounded),
+                              // FIXED: tambah toggle show/hide password
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                ),
+                                onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
+                              ),
+                            ),
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? 'Password wajib diisi'
+                                : null,
+                          ),
+
+                          // --- Error Message ---
+                          if (auth.errorMessage != null) ...[
+                            const SizedBox(height: 14),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: AppColors.errorLight,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AppColors.error.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.error_outline_rounded,
+                                      color: AppColors.error, size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      auth.errorMessage!,
+                                      style: GoogleFonts.poppins(
+                                        color: AppColors.error,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 28),
+
+                          // --- Tombol Masuk ---
+                          // FIXED: onPressed null-safe — CustomButton sekarang terima VoidCallback?
+                          CustomButton(
+                            text: auth.isLoading ? 'Memproses...' : 'Masuk',
+                            onPressed:
+                                auth.isLoading ? null : () => _handleLogin(auth),
+                            isOutlined: false,
+                          ),
+                          const SizedBox(height: 20),
+
+                          // --- Divider ---
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  height: 1,
+                                  color: const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  'atau',
+                                  style: GoogleFonts.poppins(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Container(
+                                  height: 1,
+                                  color: const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          // --- Tombol Google ---
+                          _buildGoogleButton(auth),
+                          const SizedBox(height: 28),
+
+                          // --- Link ke Register ---
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Belum punya akun?',
+                                style: GoogleFonts.poppins(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: auth.isLoading
+                                    ? null
+                                    : () {
+                                        Navigator.pushReplacement(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const RegisterScreen()),
+                                        );
+                                      },
+                                style: TextButton.styleFrom(
+                                  foregroundColor: AppColors.primary,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8),
+                                ),
+                                child: Text(
+                                  'Daftar',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    validator: (v) => (v == null || v.isEmpty)
-                        ? 'Password wajib diisi'
-                        : null,
-                  ),
-
-                  // --- Error Message ---
-                  if (auth.errorMessage != null) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Text(
-                        auth.errorMessage!,
-                        style: GoogleFonts.poppins(
-                            color: Colors.red.shade700, fontSize: 13),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 32),
-
-                  // --- Tombol Masuk ---
-                  // FIXED: onPressed null-safe — CustomButton sekarang terima VoidCallback?
-                  CustomButton(
-                    text: auth.isLoading ? 'Memproses...' : 'Masuk',
-                    onPressed: auth.isLoading ? null : () => _handleLogin(auth),
-                    isOutlined: false,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // --- Divider ---
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: Colors.grey[400])),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Text('atau',
-                            style:
-                                GoogleFonts.poppins(color: Colors.grey[600])),
-                      ),
-                      Expanded(child: Divider(color: Colors.grey[400])),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // --- Tombol Google ---
-                  _buildGoogleButton(auth),
-                  const SizedBox(height: 16),
-
-                  // --- Link ke Register ---
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('Belum punya akun?', style: GoogleFonts.poppins()),
-                      TextButton(
-                        onPressed: auth.isLoading
-                            ? null
-                            : () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => const RegisterScreen()),
-                                );
-                              },
-                        child: const Text('Daftar'),
-                      ),
-                    ],
                   ),
                 ],
               ),
@@ -203,42 +272,119 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 20,
+        bottom: 32,
+        left: 24,
+        right: 24,
+      ),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primaryDark, AppColors.primary, AppColors.secondary],
+          stops: [0.0, 0.6, 1.0],
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.explore_rounded, color: Colors.white, size: 26),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'TripMate',
+                style: GoogleFonts.poppins(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildGoogleButton(AuthProvider auth) {
     return SizedBox(
       width: double.infinity,
-      child: OutlinedButton.icon(
+      height: 52,
+      child: OutlinedButton(
         // FIXED: onPressed null ketika loading
         onPressed: auth.isLoading ? null : () => _handleGoogleLogin(auth),
-        icon: auth.isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                // FIXED: ganti Image.network (rawan gagal) dengan Icon + warna Google
-                child: const Icon(
-                  Icons.g_mobiledata,
-                  color: Color(0xFF4285F4),
-                  size: 22,
-                ),
-              ),
-        label: Text(
-          auth.isLoading ? 'Memproses...' : 'Masuk dengan Google',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16),
-        ),
         style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.black87,
-          side: const BorderSide(color: Colors.grey, width: 1.5),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          foregroundColor: AppColors.textDark,
+          side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          backgroundColor: AppColors.surface,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            auth.isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    // FIXED: ganti Image.network (rawan gagal) dengan Icon + warna Google
+                    child: const Icon(
+                      Icons.g_mobiledata,
+                      color: Color(0xFF4285F4),
+                      size: 22,
+                    ),
+                  ),
+            const SizedBox(width: 10),
+            Text(
+              auth.isLoading ? 'Memproses...' : 'Lanjutkan dengan Google',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: AppColors.textDark,
+              ),
+            ),
+          ],
         ),
       ),
     );
